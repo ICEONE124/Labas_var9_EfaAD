@@ -15,15 +15,12 @@ typedef struct Base {
     Item *next;
     Item *prev;
     TypeObjects type;
-    int rows;
-    int cols;
-    double **data;
 } Base;
 
 Base* Create(TypeObjects type);
 void Input(Base *base);
 void Print(Base *base);
-void FreeBase(Base *base);
+int GetSize(Base *base);
 
 void PrintObjects(List *list);
 void SortBySize(List *list);
