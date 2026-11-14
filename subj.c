@@ -9,24 +9,36 @@ const char * const TypeName[] = {
     "Неизвестный тип", "Скаляр", "Вектор-строка", "Вектор-столбец", "Матрица"
 };
 
-typedef struct Scalar { 
-    Item *next; Item *prev; TypeObjects type; 
-    double data; 
+typedef struct Scalar {
+    Item *next;
+    Item *prev;
+    TypeObjects type;
+    double data;
 } Scalar;
 
-typedef struct RowVector { 
-    Item *next; Item *prev; TypeObjects type; 
-    int cols; double data[50]; 
+typedef struct RowVector {
+    Item *next;
+    Item *prev;
+    TypeObjects type;
+    int cols;
+    double data[50];
 } RowVector;
 
-typedef struct ColVector { 
-    Item *next; Item *prev; TypeObjects type; 
-    int rows; double data[50]; 
+typedef struct ColVector {
+    Item *next;
+    Item *prev;
+    TypeObjects type;
+    int rows;
+    double data[50];
 } ColVector;
 
-typedef struct Matrix { 
-    Item *next; Item *prev; TypeObjects type; 
-    int rows; int cols; double data[50][50]; 
+typedef struct Matrix {
+    Item *next;
+    Item *prev;
+    TypeObjects type;
+    int rows;
+    int cols;
+    double data[50][50];
 } Matrix;
 
 Base* Create(TypeObjects type) {
@@ -91,14 +103,19 @@ void Input(Base *base) {
     }
 }
 
-void PrintScalar(Scalar *p)    { printf("%.4lf\n", p->data); }
+void PrintScalar(Scalar *p) { 
+    printf("%.4lf\n", p->data); 
+}
+
 void PrintRowVector(RowVector *p) {
     for (int j = 0; j < p->cols; j++) printf("%.4lf ", p->data[j]);
     printf("\n");
 }
+
 void PrintColVector(ColVector *p) {
     for (int i = 0; i < p->rows; i++) printf("%.4lf\n", p->data[i]);
 }
+
 void PrintMatrix(Matrix *p) {
     for (int i = 0; i < p->rows; i++) {
         for (int j = 0; j < p->cols; j++) printf("%.4lf ", p->data[i][j]);
@@ -135,27 +152,8 @@ void SortBySize(List *list) {
             Base *b1 = (Base*)GetItem(list, j);
             Base *b2 = (Base*)GetItem(list, j + 1);
             if (GetSize(b1) > GetSize(b2)) {
-                TypeObjects tt = b1->type;
-                b1->type = b2->type;
-                b2->type = tt;
-                
-                if (b1->type == TypeScalar) {
-                    Scalar tmp = *(Scalar*)b1;
-                    *(Scalar*)b1 = *(Scalar*)b2;
-                    *(Scalar*)b2 = tmp;
-                } else if (b1->type == TypeRowVector) {
-                    RowVector tmp = *(RowVector*)b1;
-                    *(RowVector*)b1 = *(RowVector*)b2;
-                    *(RowVector*)b2 = tmp;
-                } else if (b1->type == TypeColVector) {
-                    ColVector tmp = *(ColVector*)b1;
-                    *(ColVector*)b1 = *(ColVector*)b2;
-                    *(ColVector*)b2 = tmp;
-                } else if (b1->type == TypeMatrix) {
-                    Matrix tmp = *(Matrix*)b1;
-                    *(Matrix*)b1 = *(Matrix*)b2;
-                    *(Matrix*)b2 = tmp;
-                }
+                Item *tmp = Remove(list, j + 1);
+                Insert(list, tmp, j);
             }
         }
     }
@@ -184,6 +182,208 @@ void SearchNumber(List *list, double number) {
     if (found == 0) printf("Не найдено.\n");
 }
 
+Base* OpScalarScalar(Scalar *l, Scalar *r, ArithmeticOperations op) {
+    Scalar *res = (Scalar*)Create(TypeScalar);
+    switch (op) {
+        case OpPlus:     res->data = l->data + r->data; break;
+        case OpMinus:    res->data = l->data - r->data; break;
+        case OpMultiply: res->data = l->data * r->data; break;
+        case OpDivide:   
+            if (fabs(r->data) < EPS) { free(res); return NULL; }
+            res->data = l->data / r->data; 
+            break;
+        default: free(res); return NULL;
+    }
+    return (Base*)res;
+}
+
+Base* OpScalarRowVector(Scalar *l, RowVector *r, ArithmeticOperations op) {
+    if (op == OpPlus || op == OpMinus) return NULL;
+    RowVector *res = (RowVector*)Create(TypeRowVector);
+    res->cols = r->cols;
+    for (int i = 0; i < r->cols; i++) {
+        if (op == OpMultiply) res->data[i] = l->data * r->data[i];
+        else if (op == OpDivide) {
+            if (fabs(r->data[i]) < EPS) { free(res); return NULL; }
+            res->data[i] = l->data / r->data[i];
+        }
+    }
+    return (Base*)res;
+}
+
+Base* OpScalarColVector(Scalar *l, ColVector *r, ArithmeticOperations op) {
+    if (op == OpPlus || op == OpMinus) return NULL;
+    ColVector *res = (ColVector*)Create(TypeColVector);
+    res->rows = r->rows;
+    for (int i = 0; i < r->rows; i++) {
+        if (op == OpMultiply) res->data[i] = l->data * r->data[i];
+        else if (op == OpDivide) {
+            if (fabs(r->data[i]) < EPS) { free(res); return NULL; }
+            res->data[i] = l->data / r->data[i];
+        }
+    }
+    return (Base*)res;
+}
+
+Base* OpScalarMatrix(Scalar *l, Matrix *r, ArithmeticOperations op) {
+    if (op == OpPlus || op == OpMinus) return NULL;
+    Matrix *res = (Matrix*)Create(TypeMatrix);
+    res->rows = r->rows; res->cols = r->cols;
+    for (int i = 0; i < r->rows; i++) {
+        for (int j = 0; j < r->cols; j++) {
+            if (op == OpMultiply) res->data[i][j] = l->data * r->data[i][j];
+            else if (op == OpDivide) {
+                if (fabs(r->data[i][j]) < EPS) { free(res); return NULL; }
+                res->data[i][j] = l->data / r->data[i][j];
+            }
+        }
+    }
+    return (Base*)res;
+}
+
+Base* OpRowVectorRowVector(RowVector *l, RowVector *r, ArithmeticOperations op) {
+    if (op == OpDivide) return NULL;
+    if (op == OpMultiply) {
+        Scalar *res = (Scalar*)Create(TypeScalar);
+        res->data = 0;
+        for (int i = 0; i < l->cols; i++) res->data += l->data[i] * r->data[i];
+        return (Base*)res;
+    }
+    RowVector *res = (RowVector*)Create(TypeRowVector);
+    res->cols = l->cols;
+    for (int i = 0; i < l->cols; i++) {
+        res->data[i] = (op == OpPlus) ? (l->data[i] + r->data[i]) : (l->data[i] - r->data[i]);
+    }
+    return (Base*)res;
+}
+
+Base* OpColVectorColVector(ColVector *l, ColVector *r, ArithmeticOperations op) {
+    if (op == OpDivide) return NULL;
+    if (op == OpMultiply) {
+        Scalar *res = (Scalar*)Create(TypeScalar);
+        res->data = 0;
+        for (int i = 0; i < l->rows; i++) res->data += l->data[i] * r->data[i];
+        return (Base*)res;
+    }
+    ColVector *res = (ColVector*)Create(TypeColVector);
+    res->rows = l->rows;
+    for (int i = 0; i < l->rows; i++) {
+        res->data[i] = (op == OpPlus) ? (l->data[i] + r->data[i]) : (l->data[i] - r->data[i]);
+    }
+    return (Base*)res;
+}
+
+Base* OpMatrixMatrix(Matrix *l, Matrix *r, ArithmeticOperations op) {
+    if (op == OpDivide) return NULL;
+    if (op == OpMultiply) {
+        Matrix *res = (Matrix*)Create(TypeMatrix);
+        res->rows = l->rows; res->cols = r->cols;
+        for (int i = 0; i < l->rows; i++)
+            for (int j = 0; j < r->cols; j++) {
+                res->data[i][j] = 0;
+                for (int k = 0; k < l->cols; k++) res->data[i][j] += l->data[i][k] * r->data[k][j];
+            }
+        return (Base*)res;
+    }
+    Matrix *res = (Matrix*)Create(TypeMatrix);
+    res->rows = l->rows; res->cols = l->cols;
+    for (int i = 0; i < l->rows; i++)
+        for (int j = 0; j < l->cols; j++) {
+            res->data[i][j] = (op == OpPlus) ? (l->data[i][j] + r->data[i][j]) : (l->data[i][j] - r->data[i][j]);
+        }
+    return (Base*)res;
+}
+
+Base* CheckScalar(Base *left, Base *right, ArithmeticOperations op) {
+    Scalar *l = (Scalar*)left;
+    switch (right->type) {
+        case TypeScalar:    return OpScalarScalar(l, (Scalar*)right, op);
+        case TypeRowVector: return OpScalarRowVector(l, (RowVector*)right, op);
+        case TypeColVector: return OpScalarColVector(l, (ColVector*)right, op);
+        case TypeMatrix:    return OpScalarMatrix(l, (Matrix*)right, op);
+        default: return NULL;
+    }
+}
+
+Base* CheckRowVector(Base *left, Base *right, ArithmeticOperations op) {
+    RowVector *l = (RowVector*)left;
+    switch (right->type) {
+        case TypeRowVector: 
+            if (l->cols != ((RowVector*)right)->cols) return NULL;
+            return OpRowVectorRowVector(l, (RowVector*)right, op);
+        case TypeColVector: {
+            if (op != OpMultiply) return NULL;
+            ColVector *r = (ColVector*)right;
+            if (l->cols != r->rows) return NULL;
+            Scalar *res = (Scalar*)Create(TypeScalar);
+            res->data = 0;
+            for (int i = 0; i < l->cols; i++) res->data += l->data[i] * r->data[i];
+            return (Base*)res;
+        }
+        default: return NULL;
+    }
+}
+
+Base* CheckColVector(Base *left, Base *right, ArithmeticOperations op) {
+    ColVector *l = (ColVector*)left;
+    switch (right->type) {
+        case TypeColVector: 
+            if (l->rows != ((ColVector*)right)->rows) return NULL;
+            return OpColVectorColVector(l, (ColVector*)right, op);
+        case TypeRowVector: {
+            if (op != OpMultiply) return NULL;
+            RowVector *r = (RowVector*)right;
+            if (l->rows != r->cols) return NULL;
+            Matrix *res = (Matrix*)Create(TypeMatrix);
+            res->rows = l->rows; res->cols = r->cols;
+            for (int i = 0; i < l->rows; i++)
+                for (int j = 0; j < r->cols; j++)
+                    res->data[i][j] = l->data[i] * r->data[j];
+            return (Base*)res;
+        }
+        default: return NULL;
+    }
+}
+
+Base* CheckMatrix(Base *left, Base *right, ArithmeticOperations op) {
+    Matrix *l = (Matrix*)left;
+    switch (right->type) {
+        case TypeScalar: {
+            Scalar *r = (Scalar*)right;
+            Matrix *res = (Matrix*)Create(TypeMatrix);
+            res->rows = l->rows; res->cols = l->cols;
+            for (int i = 0; i < l->rows; i++)
+                for (int j = 0; j < l->cols; j++)
+                    res->data[i][j] = (op == OpMultiply) ? (l->data[i][j] * r->data) : (l->data[i][j] / r->data);
+            return (Base*)res;
+        }
+        case TypeMatrix: {
+            Matrix *r = (Matrix*)right;
+            if (op != OpMultiply && (l->rows != r->rows || l->cols != r->cols)) return NULL;
+            if (op == OpMultiply && l->cols != r->rows) return NULL;
+            return OpMatrixMatrix(l, r, op);
+        }
+        default: return NULL;
+    }
+}
+
 void Math(List *list, int idx1, int idx2, ArithmeticOperations op) {
-    printf("Математические операции выполняются (реализация по варианту).\n");
+    Base *b1 = (Base*)GetItem(list, idx1);
+    Base *b2 = (Base*)GetItem(list, idx2);
+    if (!b1 || !b2) { printf("Элемент не найден.\n"); return; }
+
+    Base *res = NULL;
+    switch (b1->type) {
+        case TypeScalar:    res = CheckScalar(b1, b2, op); break;
+        case TypeRowVector: res = CheckRowVector(b1, b2, op); break;
+        case TypeColVector: res = CheckColVector(b1, b2, op); break;
+        case TypeMatrix:    res = CheckMatrix(b1, b2, op); break;
+    }
+
+    if (res) {
+        Add(list, (Item*)res);
+        printf("Результат добавлен в конец списка.\n");
+    } else {
+        printf("Операция невозможна для этих типов.\n");
+    }
 }
