@@ -2,9 +2,7 @@
 #include "list.h"
 
 void Add(List *list, Item *item) {
-	if (list == NULL || item == NULL)
-		return;
-
+	if (list == NULL || item == NULL) return;
 	item->next = NULL;
 	item->prev = NULL;
 
@@ -19,9 +17,7 @@ void Add(List *list, Item *item) {
 }
 
 Item* GetItem(const List *list, const int n) {
-	if (list == NULL || n < 0)
-		return NULL;
-
+	if (list == NULL || n < 0) return NULL;
 	Item *item = NULL;
 	int i;
 	for (i = 0, item = list->head; item != NULL && i < n; i++) {
@@ -31,9 +27,7 @@ Item* GetItem(const List *list, const int n) {
 }
 
 Item* Remove(List *list, const int n) {
-	if (list == NULL)
-		return NULL;
-
+	if (list == NULL) return NULL;
 	Item *item = GetItem(list, n);
 	if (item != NULL) {
 		if (list->head == list->tail) {
@@ -42,13 +36,13 @@ Item* Remove(List *list, const int n) {
 		} else {
 			if (item == list->head) {
 				list->head = item->next;
-				list->head->prev = NULL;
+				if (list->head != NULL) list->head->prev = NULL;
 			} else if (item == list->tail) {
 				list->tail = item->prev;
-				list->tail->next = NULL;
+				if (list->tail != NULL) list->tail->next = NULL;
 			} else {
-				item->next->prev = item->prev;
-				item->prev->next = item->next;
+				if (item->next != NULL) item->next->prev = item->prev;
+				if (item->prev != NULL) item->prev->next = item->next;
 			}
 		}
 		item->next = NULL;
@@ -59,59 +53,43 @@ Item* Remove(List *list, const int n) {
 }
 
 void Delete(List *list, const int n) {
-	if (list == NULL)
-		return;
-
+	if (list == NULL) return;
 	Item *item = Remove(list, n);
-	if (item == NULL) {
-		printf("Объект не найден\n");
-	} else {
+	if (item != NULL) {
 		free(item);
 	}
 }
 
 int Count(const List *list) {
-	if (list == NULL)
-		return -1;
-
+	if (list == NULL) return 0;
 	Item *item;
 	int n;
-
 	for (n = 0, item = list->head; item != NULL; item = item->next) {
 		n++;
 	}
-
 	return n;
 }
 
 void Clear(List *list) {
-	if (list == NULL)
-		return;
-
-	while (list->head) {
+	if (list == NULL) return;
+	while (list->head != NULL) {
 		Delete(list, 0);
 	}
 }
 
 int GetIndex(const List *list, const Item *item) {
-	if (list == NULL || item == NULL)
-		return -1;
-
+	if (list == NULL || item == NULL) return -1;
 	Item *i;
 	int number;
 	for (number = 0, i = list->head; i != NULL; i = i->next) {
-		if (i == item) {
-			return number;
-		}
+		if (i == item) return number;
 		number++;
 	}
 	return -1;
 }
 
 int Insert(List *list, Item *item, const int n) {
-	if (list == NULL || item == NULL)
-		return -1;
-
+	if (list == NULL || item == NULL) return -1;
 	item->next = NULL;
 	item->prev = NULL;
 
