@@ -184,94 +184,233 @@ void SearchNumber(List *list, double number) {
 
 Base* OpScalarScalar(Scalar *l, Scalar *r, ArithmeticOperations op) {
     Scalar *res = (Scalar*)Create(TypeScalar);
+    if (!res) return NULL;
+
     switch (op) {
-        case OpPlus:     res->data = l->data + r->data; break;
-        case OpMinus:    res->data = l->data - r->data; break;
-        case OpMultiply: res->data = l->data * r->data; break;
-        case OpDivide:   
-            if (fabs(r->data) < EPS) { free(res); return NULL; }
-            res->data = l->data / r->data; 
+        case OpPlus:
+            res->data = l->data + r->data;
             break;
-        default: free(res); return NULL;
+
+        case OpMinus:
+            res->data = l->data - r->data;
+            break;
+
+        case OpMultiply:
+            res->data = l->data * r->data;
+            break;
+
+        case OpDivide:
+            if (fabs(r->data) < EPS) {
+                free(res);
+                return NULL;
+            }
+            res->data = l->data / r->data;
+            break;
+
+        default:
+            free(res);
+            return NULL;
     }
+
     return (Base*)res;
 }
 
 Base* OpScalarRowVector(Scalar *l, RowVector *r, ArithmeticOperations op) {
-    if (op != OpMultiply) return NULL;
-    RowVector *res = (RowVector*)Create(TypeRowVector);
+    RowVector *res;
+
+    if (op != OpMultiply) {
+        return NULL;
+    }
+
+    res = (RowVector*)Create(TypeRowVector);
+    if (!res) return NULL;
+
     res->cols = r->cols;
+
     for (int i = 0; i < r->cols; i++) {
         res->data[i] = l->data * r->data[i];
     }
+
     return (Base*)res;
 }
 
 Base* OpScalarColVector(Scalar *l, ColVector *r, ArithmeticOperations op) {
-    if (op != OpMultiply) return NULL;
-    ColVector *res = (ColVector*)Create(TypeColVector);
+    ColVector *res;
+
+    if (op != OpMultiply) {
+        return NULL;
+    }
+
+    res = (ColVector*)Create(TypeColVector);
+    if (!res) return NULL;
+
     res->rows = r->rows;
+
     for (int i = 0; i < r->rows; i++) {
         res->data[i] = l->data * r->data[i];
     }
+
     return (Base*)res;
 }
 
 Base* OpScalarMatrix(Scalar *l, Matrix *r, ArithmeticOperations op) {
-    if (op != OpMultiply) return NULL;
-    Matrix *res = (Matrix*)Create(TypeMatrix);
-    res->rows = r->rows; res->cols = r->cols;
+    Matrix *res;
+
+    if (op != OpMultiply) {
+        return NULL;
+    }
+
+    res = (Matrix*)Create(TypeMatrix);
+    if (!res) return NULL;
+
+    res->rows = r->rows;
+    res->cols = r->cols;
+
     for (int i = 0; i < r->rows; i++) {
         for (int j = 0; j < r->cols; j++) {
             res->data[i][j] = l->data * r->data[i][j];
         }
     }
+
     return (Base*)res;
 }
 
 Base* OpRowVectorRowVector(RowVector *l, RowVector *r, ArithmeticOperations op) {
-    if ((op != OpPlus && op != OpMinus) || l->cols != r->cols) return NULL;
-    RowVector *res = (RowVector*)Create(TypeRowVector);
-    res->cols = l->cols;
-    for (int i = 0; i < l->cols; i++) {
-        res->data[i] = (op == OpPlus) ? (l->data[i] + r->data[i]) : (l->data[i] - r->data[i]);
+    if (l->cols != r->cols) {
+        return NULL;
     }
-    return (Base*)res;
+
+    if (op == OpDivide) {
+        return NULL;
+    }
+
+    if (op == OpPlus || op == OpMinus) {
+        RowVector *res = (RowVector*)Create(TypeRowVector);
+        if (!res) return NULL;
+
+        res->cols = l->cols;
+
+        for (int i = 0; i < l->cols; i++) {
+            if (op == OpPlus) {
+                res->data[i] = l->data[i] + r->data[i];
+            } else {
+                res->data[i] = l->data[i] - r->data[i];
+            }
+        }
+
+        return (Base*)res;
+    }
+
+    if (op == OpMultiply) {
+        Scalar *res = (Scalar*)Create(TypeScalar);
+        if (!res) return NULL;
+
+        res->data = 0.0;
+
+        for (int i = 0; i < l->cols; i++) {
+            res->data += l->data[i] * r->data[i];
+        }
+
+        return (Base*)res;
+    }
+
+    return NULL;
 }
 
 Base* OpColVectorColVector(ColVector *l, ColVector *r, ArithmeticOperations op) {
-    if ((op != OpPlus && op != OpMinus) || l->rows != r->rows) return NULL;
-    ColVector *res = (ColVector*)Create(TypeColVector);
-    res->rows = l->rows;
-    for (int i = 0; i < l->rows; i++) {
-        res->data[i] = (op == OpPlus) ? (l->data[i] + r->data[i]) : (l->data[i] - r->data[i]);
+    if (l->rows != r->rows) {
+        return NULL;
     }
-    return (Base*)res;
+
+    if (op == OpDivide) {
+        return NULL;
+    }
+
+    if (op == OpPlus || op == OpMinus) {
+        ColVector *res = (ColVector*)Create(TypeColVector);
+        if (!res) return NULL;
+
+        res->rows = l->rows;
+ 
+
+        for (int i = 0; i < l->rows; i++) {
+            if (op == OpPlus) {
+                res->data[i] = l->data[i] + r->data[i];
+            } else {
+                res->data[i] = l->data[i] - r->data[i];
+            }
+        }
+
+        return (Base*)res;
+    }
+
+    if (op == OpMultiply) {
+        Scalar *res = (Scalar*)Create(TypeScalar);
+        if (!res) return NULL;
+
+        res->data = 0.0;
+
+        for (int i = 0; i < l->rows; i++) {
+            res->data += l->data[i] * r->data[i];
+        }
+
+        return (Base*)res;
+    }
+
+    return NULL;
 }
 
 Base* OpMatrixMatrix(Matrix *l, Matrix *r, ArithmeticOperations op) {
+    Matrix *res;
+
     if (op == OpMultiply) {
-        if (l->cols != r->rows) return NULL;
-        Matrix *res = (Matrix*)Create(TypeMatrix);
-        res->rows = l->rows; res->cols = r->cols;
+        if (l->cols != r->rows) {
+            return NULL;
+        }
+
+        res = (Matrix*)Create(TypeMatrix);
+        if (!res) return NULL;
+
+        res->rows = l->rows;
+        res->cols = r->cols;
+
         for (int i = 0; i < l->rows; i++) {
             for (int j = 0; j < r->cols; j++) {
-                res->data[i][j] = 0;
+                res->data[i][j] = 0.0;
+
                 for (int k = 0; k < l->cols; k++) {
                     res->data[i][j] += l->data[i][k] * r->data[k][j];
                 }
             }
         }
+
         return (Base*)res;
     }
-    if ((op != OpPlus && op != OpMinus) || l->rows != r->rows || l->cols != r->cols) return NULL;
-    Matrix *res = (Matrix*)Create(TypeMatrix);
-    res->rows = l->rows; res->cols = l->cols;
+
+    if (op != OpPlus && op != OpMinus) {
+        return NULL;
+    }
+
+    if (l->rows != r->rows || l->cols != r->cols) {
+        return NULL;
+    }
+
+    res = (Matrix*)Create(TypeMatrix);
+    if (!res) return NULL;
+
+    res->rows = l->rows;
+    res->cols = l->cols;
+
     for (int i = 0; i < l->rows; i++) {
         for (int j = 0; j < l->cols; j++) {
-            res->data[i][j] = (op == OpPlus) ? (l->data[i][j] + r->data[i][j]) : (l->data[i][j] - r->data[i][j]);
+            if (op == OpPlus) {
+                res->data[i][j] = l->data[i][j] + r->data[i][j];
+            } else {
+                res->data[i][j] = l->data[i][j] - r->data[i][j];
+            }
         }
     }
+
     return (Base*)res;
 }
 
